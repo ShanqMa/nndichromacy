@@ -47,6 +47,7 @@ def static_loader(
     include_eye_position: bool=None,
     add_eye_pos_as_channels: bool=None,
     include_trial_info_keys: list=None,
+    toy_data: bool=None,
 
 ):
     """
@@ -156,13 +157,12 @@ def static_loader(
     elif "GrayImageNet" in path:
         data_key = path.split("static")[-1].split("-GrayImageNet")[0]
     else:
-        print("filename not expected, using full filename as data_key")
-        data_key = path
+        data_key = f'{dat.neurons.animal_id[0]}-{dat.neurons.session[0]}-{dat.neurons.scan_idx[0]}'
 
 
     if return_test_sampler:
         dataloader = get_oracle_dataloader(
-            dat, image_condition=image_condition, file_tree=file_tree, data_key=data_key
+            dat, image_condition=image_condition, file_tree=file_tree, data_key=data_key, toy_data=toy_data,
         )
         return dataloader
 
@@ -246,7 +246,9 @@ def static_loaders(
     include_eye_position: bool=None,
     add_eye_pos_as_channels: bool=None,
     include_trial_info_keys: list=None,
-    overwrite_data_path: bool=False,
+    overwrite_data_path: bool=True,
+    return_test_sampler: bool=None,
+    toy_data: bool=None,
 ):
     """
     Returns a dictionary of dataloaders (i.e., trainloaders, valloaders, and testloaders) for >= 1 dataset(s).
@@ -279,21 +281,19 @@ def static_loaders(
     if seed is not None:
         set_random_seed(seed)
     dls = OrderedDict({})
-    keys = [tier] if tier else ["train", "validation", "test"]
-    for key in keys:
-        dls[key] = OrderedDict({})
-
+    if not return_test_sampler:
+        keys = [tier] if tier else ["train", "validation", "test"]
+        for key in keys:
+            dls[key] = OrderedDict({})
     neuron_ids = [neuron_ids] if neuron_ids is None else neuron_ids
     image_ids = [image_ids] if image_ids is None else image_ids
 
     basepath = '/data/mouse/toliaslab/static/'
-
     for path, neuron_id, image_id in zip_longest(paths, neuron_ids, image_ids, fillvalue=None):
-        if overwrite_data_path:
+        if (overwrite_data_path) and (os.path.exists(basepath)):
             path = os.path.join(basepath, path)
 
-
-        data_key, loaders = static_loader(
+        out = static_loader(
             path,
             batch_size,
             areas=areas,
@@ -320,10 +320,14 @@ def static_loaders(
             include_eye_position=include_eye_position,
             add_eye_pos_as_channels=add_eye_pos_as_channels,
             include_trial_info_keys=include_trial_info_keys,
-
+            return_test_sampler=return_test_sampler,
+            toy_data=toy_data,
         )
-        for k in dls:
-            dls[k][data_key] = loaders[k]
+        if not return_test_sampler:
+            for k in dls:
+                dls[k][out[0]] = out[1][k]
+        else:
+            dls.update(out)
 
     return dls
 
