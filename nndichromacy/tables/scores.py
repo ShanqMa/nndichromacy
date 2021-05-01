@@ -132,6 +132,16 @@ class FEVeScore(ScoringTable):
     model_cache = TrainedModelCache
 
 
+@schema
+class TestPoissonLoss(ScoringTable):
+    dataset_table = Dataset
+    trainedmodel_table = TrainedModel
+    unit_table = MEISelector
+    measure_function = staticmethod(get_poisson_loss)
+    measure_dataset = "test"
+    measure_attribute = "test_poissonloss"
+
+
 ##### ============ Ensemble Scores ============ #####
 
 
@@ -145,6 +155,16 @@ class TestCorrelationEnsemble(ScoringTable):
     measure_attribute = "avg_correlation"
     data_cache = DataCache
     model_cache = EnsembleModelCache
+
+
+@schema
+class TestPoissonLossEnsemble(ScoringTable):
+    dataset_table = Dataset
+    trainedmodel_table = TrainedEnsembleModel
+    unit_table = MEISelector
+    measure_function = staticmethod(get_poisson_loss)
+    measure_dataset = "test"
+    measure_attribute = "test_poissonloss"
 
 
 @schema
