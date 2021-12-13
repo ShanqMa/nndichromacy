@@ -103,3 +103,14 @@ class MEIThresholdMask(MEIScore):
         mask = mask_fn(mei, **mask_config)
         key["mask"] = mask
         self.insert1(key, ignore_extra_fields=True)
+
+
+from nndichromacy.tables.surroundMEI import SurroundMEI
+@schema
+class MEISurroundMichelsonContrast(MEIScore):
+    mei_table = SurroundMEI
+    measure_function = staticmethod(get_mei_michelson_contrast)
+    measure_attribute = "michelson_contrast"
+    external_download_path = fetch_download_path
+
+
