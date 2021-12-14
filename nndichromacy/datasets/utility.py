@@ -43,6 +43,9 @@ def get_oracle_dataloader(
         elif "frame_image_id" in dir(dat_info):
             condition_hashes = dat_info.frame_image_id
             image_class = dat_info.frame_image_class
+        elif "frame2_image_id" in dir(dat_info):
+            condition_hashes = dat_info.frame2_image_id
+            image_class = dat_info.frame2_image_class
         else:
             raise ValueError(
                 "'image_id' 'colorframeprojector_image_id', or 'frame_image_id' have to present in the dataset under dat.info "
@@ -357,9 +360,7 @@ def add_h5_to_preprocessed_table(
     else:
         datasets = filenames
 
-    print(datasets)
     for datafile in datasets:
-        print(datafile)
         if datafile.endswith(".h5"):
             with h5py.File(datafile) as fid:
                 print(datafile, fid["images"].shape)
@@ -375,19 +376,15 @@ def add_h5_to_preprocessed_table(
             filename = (template + "/").format(**key)
         else:
             filename = datasets[0].split(".")[0] + "/"
-        print(filename)
         dat = FileTreeDataset(filename, "images", "responses")
         dat.add_link("responses", "targets")
         dat.add_link("images", "inputs")
-        print(dat)
 
     for i, key in enumerate((experiment.Scan() & keys).fetch("KEY")):
-        print(key)
         if filenames is None:
             filename = (template + "/").format(**key)
         else:
             filename = datasets[i]
-        print(filename)
         dat = FileTreeDataset(filename, "images", "responses")
         ai, se, si, ui, x, y, z = (experiment.ScanSet.UnitInfo & key).fetch(
             "animal_id", "session", "scan_idx", "unit_id", "um_x", "um_y", "um_z"
@@ -400,7 +397,6 @@ def add_h5_to_preprocessed_table(
             filename = (template + "/").format(**key)
         else:
             filename = datasets[0].split(".")[0] + "/"
-        print(filename)
         dat = FileTreeDataset(filename, "images", "responses")
         dat.zip()
 

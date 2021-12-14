@@ -69,6 +69,7 @@ def static_loader(
     include_px_position=None,
     image_reshape_list=None,
     trial_idx_selection=None,
+    include_val_in_id_selection=False,
 ):
     """
     returns a single data loader
@@ -122,7 +123,7 @@ def static_loader(
         [exclude_neuron_n == 0, neuron_base_seed is not None]
     ), "neuron_base_seed must be set when exclude_neuron_n is not 0"
 
-    if image_ids is not None and image_condition is not None:
+    if image_ids is not None and image_condition is not None and not return_test_sampler :
         raise ValueError(
             "either 'image_condition' or 'image_ids' can be passed. They can not both be true."
         )
@@ -249,6 +250,9 @@ def static_loader(
     elif "frame_image_id" in dir(dat_info):
         frame_image_id = dat_info.frame_image_id
         image_class = dat_info.frame_image_class
+    elif "frame2_image_id" in dir(dat_info):
+        frame_image_id = dat_info.frame2_image_id
+        image_class = dat_info.frame2_image_class
     else:
         raise ValueError(
             "'image_id' 'colorframeprojector_image_id', or 'frame_image_id' have to present in the dataset under dat.info "
@@ -270,7 +274,10 @@ def static_loader(
     image_id_array = frame_image_id
     for tier in keys:
         # sample images
-        if tier == "train" and image_ids is not None and image_condition is None:
+
+        if include_val_in_id_selection and image_ids is not None and image_condition is None:
+            subset_idx = np.where((tier_array == tier) & (np.isin(image_id_array, image_ids)))[0]
+        elif tier == "train" and image_ids is not None and image_condition is None:
             subset_idx = [
                 np.where(image_id_array == image_id)[0][0] for image_id in image_ids
             ]
@@ -341,6 +348,7 @@ def static_loaders(
     include_px_position=None,
     image_reshape_list=None,
     trial_idx_selection=None,
+    include_val_in_id_selection=None,
 ):
     """
     Returns a dictionary of dataloaders (i.e., trainloaders, valloaders, and testloaders) for >= 1 dataset(s).
@@ -423,6 +431,7 @@ def static_loaders(
             include_px_position=include_px_position,
             image_reshape_list=image_reshape_list,
             trial_idx_selection=trial_idx_selection,
+            include_val_in_id_selection=include_val_in_id_selection,
         )
         if not return_test_sampler:
             for k in dls:
