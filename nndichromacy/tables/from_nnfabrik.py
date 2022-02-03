@@ -34,7 +34,6 @@ dj.config['stores']['minio'] = {  # store in s3
         'secure': True,
     }
 
-
 @schema
 class DataInfo(DataInfoBase):
     dataset_table = Dataset

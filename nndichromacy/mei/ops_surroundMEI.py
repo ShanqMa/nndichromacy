@@ -138,9 +138,7 @@ class BlurAndCutSurr:
 
         unit_id = key["unit_id"]
         inner_mask_hash = key['mask_hash']
-        #inner_mei_path = (MEI & dict(method_fn=src_method_fn) & dict(ensemble_hash=inner_ensemble_hash) & dict(method_hash=inner_method_hash) & dict(unit_id=unit_id)).fetch1('mei', download_path=fetch_download_path)
-        
-        #inner_mei=torch.load(inner_mei_path)
+
         mask_key = dj.AndList([dict(method_fn=src_method_fn),
                      dict(ensemble_hash=inner_ensemble_hash),
                      dict(method_hash=inner_method_hash),
@@ -357,7 +355,7 @@ class RenormSurround:
         ### here x should be related to renorm_x.grad???
         # y=(2*x+2)
         #print("y is leaf:,", y.is_leaf)
-        print("transformed x is leaf: ",renorm_x.is_leaf)
+        #print("transformed x is leaf: ",renorm_x.is_leaf)
         return renorm_x
 
 ################################ POSTPROCESSING ##############################################
