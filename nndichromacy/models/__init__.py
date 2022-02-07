@@ -9,4 +9,5 @@ from .models import (
     augmented_full_readout,
     se_core_behavior_gauss,
     se_core_center_surround,
+    se_core_center_surround_dog
 )

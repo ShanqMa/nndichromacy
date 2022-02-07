@@ -16,7 +16,7 @@ import torch
 from torch import nn
 from neuralpredictors.constraints import positive
 from .utility import cart2pol_torch
-
+from .centersurround import Center, Surround
 
 class MultiplePointPooled2d(torch.nn.ModuleDict):
     def __init__(
@@ -143,6 +143,8 @@ class MultiReadout:
     def forward(self, *args, data_key=None, **kwargs):
         if data_key is None and len(self) == 1:
             data_key = list(self.keys())[0]
+        print(self[data_key])
+        print('.............')
         return self[data_key](*args, **kwargs)
 
     def regularizer(self, data_key):
@@ -776,6 +778,116 @@ class CenterSurround2d(nn.Module):
     def regularizer(self, data_key=None):
         return self.feature_l1(average=False)
 
+class CenterSurround2dDoG_ooo(nn.Module):
+    def __init__(
+        self,
+        in_shape,
+        outdims,
+        bias=False,
+        #init_mu_range=0.1
+        center_on=True, 
+        surround_on=True,
+        # center params
+        init_width_center=.2,
+        # surround params
+        init_width_surround_inner=.2,
+        init_width_surround_outer=.4,
+        dog=True,
+        # shared params between center and surround
+        temp=.1,
+    ):
+
+        super().__init__()
+
+        self.in_shape = in_shape
+        c, h, w = in_shape
+        self.outdims = outdims
+        self.center_on = center_on
+        self.surround_on = surround_on
+        self.detach_center = False
+        self.center = Center(h, w, outdims, 
+                             init_width=init_width_center, 
+                             temp=temp)
+        self.surround = Surround(h, w, outdims, 
+                                 init_width_inner=init_width_surround_inner, 
+                                 init_width_outer=init_width_surround_outer,
+                                 dog=dog,
+                                 temp=temp)
+        
+        self._center_feature_weights = nn.Parameter(torch.Tensor(c, outdims))
+        self._surround_feature_weights = nn.Parameter(torch.Tensor(c, outdims))
+        self.bias = nn.Parameter(torch.zeros(outdims), requires_grad=bias)
+        
+        self.initialize()
+
+    def initialize(self):
+        self._center_feature_weights.data.fill_(1 / self.in_shape[0])
+        self._surround_feature_weights.data.fill_(1 / self.in_shape[0])
+    
+    @property
+    def center_feature_weights(self):
+        # make the feature weights for each neuron positive and unit length
+        positive(self._center_feature_weights)
+        return self._center_feature_weights / torch.norm(self._center_feature_weights, p=2, dim=0, keepdim=True)
+    
+    @property
+    def surround_feature_weights(self):
+        # make the feature weights for each neuron positive and unit length
+        positive(self._surround_feature_weights)
+        return self._surround_feature_weights / torch.norm(self._surround_feature_weights, p=2, dim=0, keepdim=True)
+    
+    
+    def forward(self, center_features, surround_features, data_key=None, shift=None):
+        if not (center_features >= 0.).all():
+            raise ValueError("center_features must be positive-valued")
+        
+        if not (surround_features >= 0.).all():
+            raise ValueError("surround_features must be positive-valued")
+        
+        Nc, cc, hc, wc = center_features.size()
+        Ns, cs, hs, ws = surround_features.size()
+        
+        assert Nc == Ns, "batch size should be the same for center and surround features"
+        
+        center_feature_weights = self.center_feature_weights
+        surround_feature_weights = self.surround_feature_weights
+   
+        center_masks = self.center(shift=shift)
+        surround_masks = self.surround(shift=shift)
+        
+        if self.center_on and self.surround_on:
+            center_y = torch.einsum("bcij,nij,cn->bn", center_features, center_masks, center_feature_weights)
+            if self.detach_center:
+                center_y = center_y.detach()
+
+            surround_y = torch.einsum("bcij,nij,cn->bn", surround_features, surround_masks, surround_feature_weights)
+            y = center_y + surround_y
+        
+        elif self.center_on and not self.surround_on:
+            center_y = torch.einsum("bcij,nij,cn->bn", center_features, center_masks, center_feature_weights)
+            if self.detach_center:
+                center_y = center_y.detach()
+            y = center_y
+        
+        elif not self.center_on and self.surround_on:
+            surround_y = torch.einsum("bcij,nij,cn->bn", surround_features, surround_masks, surround_feature_weights)
+            y = surround_y
+
+        return y + self.bias
+    
+    def feature_l1(self, average=True):
+        """
+        feature_l1 function returns the l1 regularization term either the mean or just the sum of weights
+        Args:
+            average(bool): if True, use mean of weights for regularization
+        """
+        if average:
+            return self.features.abs().mean()
+        else:
+            return self.features.abs().sum()
+        
+    def regularizer(self, data_key=None):
+        return 0.
 
 class MultipleCenterSurround(MultiReadout, torch.nn.ModuleDict):
     def __init__(
@@ -818,3 +930,300 @@ class MultipleCenterSurround(MultiReadout, torch.nn.ModuleDict):
 
     def regularizer(self, data_key):
         return self[data_key].regularizer() * self.gamma_readout
+
+class MultipleCenterSurroundDoG(MultiReadout, torch.nn.ModuleDict):
+    def __init__(
+        self,
+        core,
+        in_shape_dict,
+        n_neurons_dict,
+        gamma_readout,
+        bias,
+        #init_mu_range=0.1,
+        center_on=True, 
+        surround_on=True,
+        # center params
+        init_width_center=.2,
+        # surround params
+        init_width_surround_inner=.2,
+        init_width_surround_outer=.4,
+        dog=True,
+        # shared params between center and surround
+        temp=.1,
+    ):
+        # super init to get the _module attribute
+        super().__init__()
+        k0 = None
+        for i, k in enumerate(n_neurons_dict):
+            k0 = k0 or k
+            in_shape = get_module_output(core, in_shape_dict[k])[1:]
+            n_neurons = n_neurons_dict[k]
+
+            self.add_module(
+                k,
+                CenterSurround2dDoG(
+                    in_shape=in_shape,
+                    outdims=n_neurons,
+                    bias=bias,
+                    center_on=center_on,
+                    surround_on=surround_on,
+                    #init_mu_range=init_mu_range,
+                    init_width_center=init_width_center,
+                    init_width_surround_inner=init_width_surround_inner,
+                    init_width_surround_outer=init_width_surround_outer,
+                    dog=dog,
+                    temp=temp,
+                ),
+            )
+        self.gamma_readout = gamma_readout
+
+    def regularizer(self, data_key):
+        return self[data_key].regularizer() * self.gamma_readout
+
+class CenterSurround2dDoG(nn.Module):
+    def __init__(
+        self,
+        in_shape,
+        outdims,
+        bias=False,
+        #init_mu_range=0.1
+        center_on=True, 
+        surround_on=True,
+        # center params
+        init_width_center=.2,
+        # surround params
+        init_width_surround_inner=.2,
+        init_width_surround_outer=.4,
+        dog=True,
+        # shared params between center and surround
+        temp=.1,
+    ):
+
+        super().__init__()
+
+        self.in_shape = in_shape
+        c, h, w = in_shape
+        self.outdims = outdims
+        self.center_on = center_on
+        self.surround_on = surround_on
+        self.detach_center = False
+        #for center
+        self.init_width_center = init_width_center
+        #for surround
+        self.init_width_surround_inner = init_width_surround_inner
+        self.init_width_surround_outer = init_width_surround_outer
+        self.dog = dog
+
+        self.temp = temp
+    
+        self._center = nn.Parameter(torch.zeros(outdims, 2))
+        self._center_width = nn.Parameter(torch.ones(outdims) * init_width_center)
+        self._center_weights = nn.Parameter(torch.rand(outdims) + 1e-3)
+
+        if init_width_surround_outer < init_width_surround_inner:
+            raise ValueError("Width of outer Gaussian disk cannot be smaller than the inner disk.")
+    
+        self._center_forsurr = nn.Parameter(torch.zeros(outdims, 2))
+        self._surround_weights = nn.Parameter(-1. * (torch.rand(outdims) + 1e-3))
+        self._width_outer = nn.Parameter(torch.ones(outdims) * init_width_surround_outer)
+        
+        if dog:
+            self._width_inner = nn.Parameter(torch.ones(outdims) * init_width_surround_inner)
+            self._outer_weights = nn.Parameter(torch.zeros(outdims) - 5.)
+
+
+        '''self.center = Center(h, w, outdims, 
+                             init_width=init_width_center, 
+                             temp=temp)
+        self.surround = Surround(h, w, outdims, 
+                                 init_width_inner=init_width_surround_inner, 
+                                 init_width_outer=init_width_surround_outer,
+                                 dog=dog,
+                                 temp=temp)'''
+        
+        self._center_feature_weights = nn.Parameter(torch.Tensor(c, outdims))
+        self._surround_feature_weights = nn.Parameter(torch.Tensor(c, outdims))
+        self.bias = nn.Parameter(torch.zeros(outdims), requires_grad=bias)
+        
+        self.initialize()
+
+    def initialize(self):
+        self._center_feature_weights.data.fill_(1 / self.in_shape[0])
+        self._surround_feature_weights.data.fill_(1 / self.in_shape[0])
+    
+    def make_mask_grid(h, w, outdims):
+        if h > w:
+            yy, xx = torch.meshgrid(
+                [
+                    torch.linspace(-max(h, w) / min(h, w), max(h, w) / min(h, w), h),
+                    torch.linspace(-1, 1, w),
+                ]
+            )
+        else:
+            yy, xx = torch.meshgrid(
+                [
+                    torch.linspace(-1, 1, h),
+                    torch.linspace(-max(h, w) / min(h, w), max(h, w) / min(h, w), w),
+                ]
+            )
+        grid = torch.stack([xx, yy], 2)[None, ...]
+        return grid.repeat([outdims, 1, 1, 1])
+
+    def sigmoid(z, temp=1):
+        return 1/(1+torch.exp(-z/temp))
+
+    def normalize(dd, lower=0, upper=1):
+        dd_ms = dd - dd.min()
+        return dd_ms / dd_ms.max() * (upper - lower) + lower
+    
+
+    @property
+    def center(self):
+        self._center.data.clamp_(-1, 1)
+        return self._center
+    
+    @property
+    def center_width(self):
+        self._center_width.data.clamp_(1e-3)
+        return self._center_width
+    
+    @property
+    def center_weights(self):
+        self._weights.data.clamp_(0.)
+        return self._center_weights
+
+    @property
+    def center_forsurr(self):
+        self._center_forsurr.data.clamp_(-1, 1)
+        return self._center_forsurr
+    
+    @property
+    def width_inner(self):
+        self._width_inner.data.clamp_(1e-3)
+        return self._width_inner
+    
+    @property
+    def width_outer(self):
+        if self.dog:
+            self._width_outer.data.copy_((self._width_outer.data - self._width_inner.data).clamp(0.) + self._width_inner.data)
+        else:
+            self._width_outer.data.clamp_(1e-3)
+        return self._width_outer
+    
+    @property
+    def outer_weights(self):
+        outer_weights = torch.sigmoid(self._outer_weights) / 2. + .5
+        return outer_weights
+    
+    @property
+    def inner_weights(self):
+        inner_weights = 1 - self.outer_weights
+        return inner_weights
+    
+    @property
+    def surround_weights(self):
+        self._surround_weights.data.clamp_(None, 0.)
+        return self._surround_weights
+
+    @property
+    def center_feature_weights(self):
+        # make the feature weights for each neuron positive and unit length
+        positive(self._center_feature_weights)
+        return self._center_feature_weights / torch.norm(self._center_feature_weights, p=2, dim=0, keepdim=True)
+    
+    @property
+    def surround_feature_weights(self):
+        # make the feature weights for each neuron positive and unit length
+        positive(self._surround_feature_weights)
+        return self._surround_feature_weights / torch.norm(self._surround_feature_weights, p=2, dim=0, keepdim=True)
+    
+    @staticmethod
+    def generate_disk(h, w, outdims, mean, std, temp=0.01):
+        grid = make_mask_grid(h, w, outdims)
+        mean = mean.reshape(outdims, 1, 1, -1)
+        std = std.reshape(outdims, 1, 1, 1)
+
+        pdf = grid - mean
+        pdf = torch.sum((pdf/std) ** 2, dim=-1)
+        pdf = torch.exp(-0.5 * pdf)
+        pdf = normalize(pdf, lower=-1, upper=1)
+        disk = sigmoid(pdf, temp=temp)
+        return disk  
+
+    def generate_center_mask(self,shift):
+        center = self.center + shift[None, ...] if shift is not None else self.center
+        masks = self.generate_disk(self.h, self.w, self.outdims, center, self.center_width, temp=self.temp)
+        
+        # Make sure this is a probability distribution
+        masks_pdf = masks / torch.sum(masks, dim=(1, 2), keepdim=True)
+        
+        return masks_pdf * self.center_weights.view(-1, 1, 1)
+    
+    def generate_surround_mask(self,shift):
+        center = self.center_forsurr + shift[None, ...] if shift is not None else self.center_forsurr
+        outer_masks = self.generate_disk(self.h, self.w, self.outdims, self.center_forsurr, self.width_outer, temp=self.temp)
+        
+        if self.dog:
+            inner_masks = self.generate_disk(self.h, self.w, self.outdims, self.center_forsurr, self.width_inner, temp=self.temp)
+            masks = outer_masks * self.outer_weights.view(-1, 1, 1) - inner_masks * self.inner_weights.view(-1, 1, 1)
+        
+        else:
+            masks = outer_masks
+        
+        # Make sure this is a probability distribution
+        masks_pdf = masks / torch.sum(masks, dim=(1, 2), keepdim=True)
+        
+        return masks_pdf * self.surround_weights.view(-1, 1, 1)
+
+
+    def forward(self, center_features, surround_features, data_key=None, shift=None):
+        if not (center_features >= 0.).all():
+            raise ValueError("center_features must be positive-valued")
+        
+        if not (surround_features >= 0.).all():
+            raise ValueError("surround_features must be positive-valued")
+        
+        Nc, cc, hc, wc = center_features.size()
+        Ns, cs, hs, ws = surround_features.size()
+        
+        assert Nc == Ns, "batch size should be the same for center and surround features"
+        
+        center_feature_weights = self.center_feature_weights
+        surround_feature_weights = self.surround_feature_weights
+   
+        center_masks = self.generate_center_mask(shift=shift)
+        surround_masks = self.generate_surround_mask(shift=shift)
+        
+        if self.center_on and self.surround_on:
+            center_y = torch.einsum("bcij,nij,cn->bn", center_features, center_masks, center_feature_weights)
+            if self.detach_center:
+                center_y = center_y.detach()
+
+            surround_y = torch.einsum("bcij,nij,cn->bn", surround_features, surround_masks, surround_feature_weights)
+            y = center_y + surround_y
+        
+        elif self.center_on and not self.surround_on:
+            center_y = torch.einsum("bcij,nij,cn->bn", center_features, center_masks, center_feature_weights)
+            if self.detach_center:
+                center_y = center_y.detach()
+            y = center_y
+        
+        elif not self.center_on and self.surround_on:
+            surround_y = torch.einsum("bcij,nij,cn->bn", surround_features, surround_masks, surround_feature_weights)
+            y = surround_y
+
+        return y + self.bias
+    
+    def feature_l1(self, average=True):
+        """
+        feature_l1 function returns the l1 regularization term either the mean or just the sum of weights
+        Args:
+            average(bool): if True, use mean of weights for regularization
+        """
+        if average:
+            return self.features.abs().mean()
+        else:
+            return self.features.abs().sum()
+        
+    def regularizer(self, data_key=None):
+        return 0.

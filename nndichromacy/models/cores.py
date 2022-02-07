@@ -3,7 +3,7 @@ import torch
 from torch import nn as nn
 from torch.autograd import Variable
 import numpy as np
-
+from torch.nn import functional as f
 
 from neuralpredictors.layers.cores import DepthSeparableConv2d, Core2d, Stacked2dCore
 from neuralpredictors import regularizers
@@ -288,6 +288,15 @@ class SE2dCore(Core2d, nn.Module):
     def outchannels(self):
         return len(self.features) * self.hidden_channels
 
+class SE2dCorePositive(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+        kwargs["final_nonlinearity"] = False
+        self.core = SE2dCore(*args, **kwargs)
+        
+    def forward(self, x):
+        out = self.core(x)
+        return f.elu(out) + 1
 
 class RotationEquivariantCore(nn.Module):
     def __init__(

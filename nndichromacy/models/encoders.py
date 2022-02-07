@@ -4,7 +4,7 @@ import copy
 
 from torch import nn
 from torch.nn import functional as F
-from .readouts import MultipleCenterSurround
+from .readouts import MultipleCenterSurround,MultipleCenterSurroundDoG
 
 
 class Encoder(nn.Module):
@@ -193,8 +193,9 @@ class GeneralEncoder(nn.Module):
 
             shift = self.shifter[data_key](pupil_center)
 
-        if isinstance(self.readout, MultipleCenterSurround):
+        if isinstance(self.readout, MultipleCenterSurround) or isinstance(self.readout, MultipleCenterSurroundDoG):
             x = self.readout(x, x, data_key=data_key, shift=shift, **kwargs)
+            
         else:
             x = self.readout(
                 x, data_key=data_key, shift=shift, behavior=behavior, **kwargs
