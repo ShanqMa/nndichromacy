@@ -56,7 +56,7 @@ class Center(nn.Module):
     
     @staticmethod
     def generate_disk(h, w, outdims, mean, std, temp=0.01):
-        grid = make_mask_grid(h, w, outdims)
+        grid = make_mask_grid(h, w, outdims).cuda()
         mean = mean.reshape(outdims, 1, 1, -1)
         std = std.reshape(outdims, 1, 1, 1)
 
@@ -68,7 +68,6 @@ class Center(nn.Module):
         return disk
     
     def forward(self, shift=None):
-        print('center...')
         center = self.center + shift[None, ...] if shift is not None else self.center
         masks = self.generate_disk(self.h, self.w, self.outdims, center, self.width, temp=self.temp)
         
@@ -139,7 +138,7 @@ class Surround(nn.Module):
     
     @staticmethod
     def generate_disk(h, w, outdims, mean, std, temp=0.01):
-        grid = make_mask_grid(h, w, outdims)
+        grid = make_mask_grid(h, w, outdims).cuda()
         mean = mean.reshape(outdims, 1, 1, -1)
         std = std.reshape(outdims, 1, 1, 1)
 
@@ -152,7 +151,6 @@ class Surround(nn.Module):
         return disk
     
     def forward(self, shift=None):
-        print('surround...')
         center = self.center + shift[None, ...] if shift is not None else self.center
         outer_masks = self.generate_disk(self.h, self.w, self.outdims, self.center, self.width_outer, temp=self.temp)
         

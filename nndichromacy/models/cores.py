@@ -288,7 +288,16 @@ class SE2dCore(Core2d, nn.Module):
     def outchannels(self):
         return len(self.features) * self.hidden_channels
 
-class SE2dCorePositive(nn.Module):
+class SE2dCorePositive(SE2dCore):
+     def __init__(self, *args, **kwargs):
+         kwargs["final_nonlinearity"] = False
+         super().__init__(*args, **kwargs)
+        
+     def forward(self, x):
+         out = super().forward(x)
+         return f.elu(out) + 1
+
+class SE2dCorePositive_oo(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__()
         kwargs["final_nonlinearity"] = False

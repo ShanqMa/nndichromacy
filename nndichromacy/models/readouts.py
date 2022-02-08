@@ -143,8 +143,8 @@ class MultiReadout:
     def forward(self, *args, data_key=None, **kwargs):
         if data_key is None and len(self) == 1:
             data_key = list(self.keys())[0]
-        print(self[data_key])
-        print('.............')
+        if isinstance(self[data_key],CenterSurround2dDoG):
+            return self[data_key](*args)
         return self[data_key](*args, **kwargs)
 
     def regularizer(self, data_key):
@@ -778,7 +778,7 @@ class CenterSurround2d(nn.Module):
     def regularizer(self, data_key=None):
         return self.feature_l1(average=False)
 
-class CenterSurround2dDoG_ooo(nn.Module):
+class CenterSurround2dDoG(nn.Module):
     def __init__(
         self,
         in_shape,
@@ -980,7 +980,7 @@ class MultipleCenterSurroundDoG(MultiReadout, torch.nn.ModuleDict):
     def regularizer(self, data_key):
         return self[data_key].regularizer() * self.gamma_readout
 
-class CenterSurround2dDoG(nn.Module):
+class CenterSurround2dDoG_nnn(nn.Module):
     def __init__(
         self,
         in_shape,
