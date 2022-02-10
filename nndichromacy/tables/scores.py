@@ -21,7 +21,7 @@ from ..utility.measures import (
 )
 from .from_nnfabrik import TrainedModel, ScoringTable, SummaryScoringTable
 from .from_mei import MEISelector, TrainedEnsembleModel
-from .from_reconstruction import Reconstruction
+#from .from_reconstruction import Reconstruction
 from . import DataCache, TrainedModelCache, EnsembleModelCache
 from nnfabrik.utility.dj_helpers import CustomSchema
 from .from_mei import MEIScore
@@ -559,12 +559,12 @@ class FractionOracleJackknifeEnsembleGreenSet(SummaryScoringTable):
 
 
 
-@schema
+'''@schema
 class RecMichelsonContrast(MEIScore):
     mei_table = Reconstruction
     measure_function = staticmethod(get_mei_michelson_contrast)
     measure_attribute = "michelson_contrast"
-    external_download_path = fetch_download_path
+    external_download_path = fetch_download_path'''
 
 
 @schema

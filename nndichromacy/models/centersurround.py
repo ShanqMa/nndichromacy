@@ -35,14 +35,14 @@ class Center(nn.Module):
         self.init_width = init_width
         self.temp = temp
     
-        self._center = nn.Parameter(torch.zeros(outdims, 2))
+        self._mu = nn.Parameter(torch.zeros(outdims, 2))
         self._width = nn.Parameter(torch.ones(outdims) * init_width)
         self._weights = nn.Parameter(torch.rand(outdims) + 1e-3)
         
     @property
-    def center(self):
-        self._center.data.clamp_(-1, 1)
-        return self._center
+    def mu(self):
+        self._mu.data.clamp_(-1, 1)
+        return self._mu
     
     @property
     def width(self):
@@ -68,8 +68,8 @@ class Center(nn.Module):
         return disk
     
     def forward(self, shift=None):
-        center = self.center + shift[None, ...] if shift is not None else self.center
-        masks = self.generate_disk(self.h, self.w, self.outdims, center, self.width, temp=self.temp)
+        mu = self.mu + shift[None, ...] if shift is not None else self.mu
+        masks = self.generate_disk(self.h, self.w, self.outdims, mu, self.width, temp=self.temp)
         
         # Make sure this is a probability distribution
         masks_pdf = masks / torch.sum(masks, dim=(1, 2), keepdim=True)
@@ -91,7 +91,7 @@ class Surround(nn.Module):
         if init_width_outer < init_width_inner:
             raise ValueError("Width of outer Gaussian disk cannot be smaller than the inner disk.")
     
-        self._center = nn.Parameter(torch.zeros(outdims, 2))
+        self._mu = nn.Parameter(torch.zeros(outdims, 2))
         self._weights = nn.Parameter(-1. * (torch.rand(outdims) + 1e-3))
         self._width_outer = nn.Parameter(torch.ones(outdims) * init_width_outer)
         
@@ -100,9 +100,9 @@ class Surround(nn.Module):
             self._outer_weights = nn.Parameter(torch.zeros(outdims) - 5.)
         
     @property
-    def center(self):
-        self._center.data.clamp_(-1, 1)
-        return self._center
+    def mu(self):
+        self._mu.data.clamp_(-1, 1)
+        return self._mu
     
     @property
     def width_inner(self):
@@ -151,11 +151,11 @@ class Surround(nn.Module):
         return disk
     
     def forward(self, shift=None):
-        center = self.center + shift[None, ...] if shift is not None else self.center
-        outer_masks = self.generate_disk(self.h, self.w, self.outdims, self.center, self.width_outer, temp=self.temp)
+        mu = self.mu + shift[None, ...] if shift is not None else self.mu
+        outer_masks = self.generate_disk(self.h, self.w, self.outdims, self.mu, self.width_outer, temp=self.temp)
         
         if self.dog:
-            inner_masks = self.generate_disk(self.h, self.w, self.outdims, self.center, self.width_inner, temp=self.temp)
+            inner_masks = self.generate_disk(self.h, self.w, self.outdims, self.mu, self.width_inner, temp=self.temp)
             masks = outer_masks * self.outer_weights.view(-1, 1, 1) - inner_masks * self.inner_weights.view(-1, 1, 1)
         
         else:

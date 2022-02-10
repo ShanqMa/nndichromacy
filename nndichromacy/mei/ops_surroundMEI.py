@@ -13,6 +13,7 @@ from mei.initial import InitialGuessCreator
 from mei.legacy.utils import varargin
 from ..tables.scores import MEINorm, MEINormBlue, MEINormGreen
 from ..tables.from_mei import MEI
+from ..tables.surroundMEI import SurroundMEI
 from ..tables.mei_scores import MEIThresholdMask
 import datajoint as dj
 
@@ -369,22 +370,15 @@ class ClipNormInChannelSurr_ctr:
         self.x_min = x_min
         self.x_max = x_max
 
-        src_method_fn = key["src_method_fn"]
-        inner_ensemble_hash = key["inner_ensemble_hash"]
-        inner_method_hash = key["inner_method_hash"]
-        unit_id = key["unit_id"]
-        inner_mask_hash = key['mask_hash']
-
-
-        mei_key = dj.AndList([dict(method_fn=src_method_fn),
-                     dict(ensemble_hash=inner_ensemble_hash),
-                     dict(method_hash=inner_method_hash),
-                     dict(unit_id=unit_id)])
+        mei_key = dj.AndList([dict(method_fn=key["src_method_fn"]),
+                     dict(ensemble_hash=key["inner_ensemble_hash"]),
+                     dict(method_hash=key["inner_method_hash"]),
+                     dict(unit_id=key["unit_id"])])
 
         inner_mei_path = (MEI & mei_key).fetch1('mei', download_path=fetch_download_path)
         inner_mei=torch.load(inner_mei_path)
         
-        center_mask= (MEIThresholdMask & mei_key & dict(mask_hash=inner_mask_hash)).fetch1( "mask", download_path=fetch_download_path)
+        center_mask= (MEIThresholdMask & mei_key & dict(mask_hash=key['mask_hash'])).fetch1( "mask", download_path=fetch_download_path)
         self.center_mask=torch.tensor(center_mask)
 
         self.centerimg = inner_mei[0][self.channel]*self.center_mask
@@ -465,3 +459,55 @@ class ClipSurround:
         return x
 
 
+class ClipNormInChannelbySurrMEI:
+    """Change the norm of the input.
+
+    Arguments:
+        norm (float or tensor): Desired norm. If tensor, it should be the same length as
+            x.
+    """
+
+    def __init__(self, channel, norm, key, x_min=None, x_max=None):
+        self.channel = channel
+        self.norm = norm
+        self.x_min = x_min
+        self.x_max = x_max
+
+        '''src_method_fn = key["src_method_fn"]
+        inner_ensemble_hash = key["inner_ensemble_hash"]
+        inner_method_hash = key["inner_method_hash"]
+        surr_method_hash = key['surr_method_hash']
+        unit_id = key["unit_id"]
+        inner_mask_hash = key['mask_hash']
+        smei_key = dj.AndList([dict(method_fn=src_method_fn),
+                     dict(ensemble_hash=inner_ensemble_hash),
+                     dict(inner_method_hash=inner_method_hash),
+                     dict()
+                     dict(unit_id=unit_id)])
+
+        surr_mei_path = (SurroundMEI & smei_key).fetch1('mei', download_path=fetch_download_path)
+        surr_mei=torch.load(surr_mei_path)
+        self.norm=torch.norm(surr_mei)'''
+
+        smei_key = dj.AndList([dict(ensemble_hash='8823faaffe306ee77e36205c6475a5e4'),
+                      dict(method_hash='99e422b26b583a68b95e03835c2888d6'),
+                      dict(method_fn = 'mei.methods.gradient_ascent'),
+                     dict(inner_method_hash='f462c746d098ced63abd2f2824c3f0f1'),
+                     dict(unit_id=key["unit_id"])])
+        surr_mei_path = (SurroundMEI & smei_key).fetch1('mei', download_path=fetch_download_path)
+        surr_mei=torch.load(surr_mei_path)
+        self.norm=torch.norm(surr_mei)
+
+    @varargin
+    def __call__(self, x, iteration=None):
+        #print(self.norm)
+        x_norm = torch.norm(x[:, self.channel, ...])
+        if x_norm > self.norm:
+            x[:, self.channel, ...] = x[:, self.channel, ...] * (self.norm / x_norm)
+        if self.x_min is None:
+            return x
+        else:
+            x[:, self.channel, ...] = torch.clamp(
+                x[:, self.channel, ...], self.x_min, self.x_max
+            )
+            return x

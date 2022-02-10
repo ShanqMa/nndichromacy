@@ -40,6 +40,16 @@ resolve_target_fn = partial(resolve_fn, default_base="targets")
 Key = Dict[str, Any]
 Dataloaders = Dict[str, DataLoader]
 
+@schema
+class SurrMEIRelateHash(dj.Manual):
+    definition = """
+    # contains ensemble ids
+    inner_ensemble_hash                   : char(32)      # the ensemble hash for linear model
+    inner_method_hash                       : char(32)
+    src_method_fn                         : char(32)      
+    ---
+    hash_comment        = ''    : varchar(256)  # a short comment describing the MEI version
+    """
 
 class SurroundMEITemplateMixin:
     definition = """
@@ -50,7 +60,6 @@ class SurroundMEITemplateMixin:
     -> self.trained_model_table
     -> self.seed_table
     -> self.mask_table.proj(src_method_fn='method_fn', inner_ensemble_hash='ensemble_hash', inner_method_hash='method_hash', inner_mei_seed='mei_seed')
-
     ---
     mei             : attach@minio  # the MEI as a tensor
     score               : float         # some score depending on the used method function
@@ -103,8 +112,6 @@ class SurroundMEITemplateMixin:
     def _create_random_filename(length: Optional[int] = 32) -> str:
         return "".join(choice(ascii_letters) for _ in range(length))
 
-###------------------------(nndichromicy from_mei)--------------------------------
-
 @schema
 class SurroundMEI(SurroundMEITemplateMixin, dj.Computed):
     """MEI table template.
@@ -124,4 +131,92 @@ class SurroundMEI(SurroundMEITemplateMixin, dj.Computed):
     surr_mei_relate_hash_table = SurrMEIRelateHash
     selector_table = MEISelector
 
+# ----------------- for contrast match MEI -----------------------
+@schema
+class ContrastMatchRelateHash(dj.Manual):
+    definition = """
+    # contains ensemble ids
+    surr_ensemble_hash                       : char(32) 
+    surr_method_hash                      : char(32)
+    inner_ensemble_hash                       : char(32) 
+    inner_method_hash                      : char(32)
+    src_method_fn                      : char(32)
+    ---
+    hash_comment        = ''    : varchar(256)  # a short comment describing the MEI version
+    """
+class ContrastMatchMEITemplateMixin:
+    definition = """
+    # contains maximally exciting images (contrast matched MEI corresponding to SurroundMEIs)
+    -> self.method_table
+    -> self.selector_table
+    -> self.trained_model_table
+    -> self.seed_table
+    -> self.surround_mei_table.proj(surr_ensemble_hash='ensemble_hash',surr_method_hash='method_hash')
+    ---
+    mei             : attach@minio  # the MEI as a tensor
+    score               : float         # some score depending on the used method function
+    output              : attach@minio  # object returned by the method function
+    """
 
+    @property
+    def key_source(self):
+        return super().key_source & ContrastMatchRelateHash #& 'method_fn like "%ring%"'
+
+    method_table = None
+    trained_model_table = None
+    selector_table = None
+    seed_table = None
+    surr_mei_relate_hash_table = None
+    surround_mei_table = None
+    model_loader_class = integration.ModelLoader
+    save = staticmethod(torch.save)
+    get_temp_dir = tempfile.TemporaryDirectory
+
+    insert1: Callable[[Mapping], None]
+
+    def __init__(self, *args, cache_size_limit: int = 10, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.model_loader = self.model_loader_class(self.trained_model_table, cache_size_limit=cache_size_limit)
+
+    def make(self, key: Key) -> None:
+        dataloaders, model = self.model_loader.load(key=key)
+        seed = (self.seed_table() & key).fetch1("mei_seed")
+        output_selected_model = self.selector_table().get_output_selected_model(model, key)
+        mei_entity = self.method_table().generate_mei(dataloaders, output_selected_model, key, seed)
+        self._insert_mei(mei_entity)
+
+    def _insert_mei(self, mei_entity: Dict[str, Any]) -> None:
+        """Saves the MEI to a temporary directory and inserts the prepared entity into the table."""
+        with self.get_temp_dir() as temp_dir:
+            for name in ("mei", "output"):
+                self._save_to_disk(mei_entity, temp_dir, name)
+            self.insert1(mei_entity, ignore_extra_fields=True)
+
+    def _save_to_disk(self, mei_entity: Dict[str, Any], temp_dir: str, name: str) -> None:
+        data = mei_entity.pop(name)
+        filename = name + "_" + self._create_random_filename() + ".pth.tar"
+        filepath = os.path.join(temp_dir, filename)
+        self.save(data, filepath)
+        mei_entity[name] = filepath
+
+    @staticmethod
+    def _create_random_filename(length: Optional[int] = 32) -> str:
+        return "".join(choice(ascii_letters) for _ in range(length))
+
+@schema
+class ContrastMatchMEI(ContrastMatchMEITemplateMixin, dj.Computed):
+    """MEI table template.
+
+    To create a functional "SurrMEI" table, create a new class that inherits from this template and decorate it with your
+    preferred Datajoint schema. Next assign your trained model (or trained ensemble model) and your selector table to
+    the class variables called "trained_model_table" and "selector_table". By default, the created table will point to
+    the "MEIMethod" table in the Datajoint schema called "nnfabrik.main". This behavior can be changed by overwriting
+    the class attribute called "method_table".
+    """
+
+    trained_model_table = TrainedEnsembleModel
+    method_table = MEIMethod
+    seed_table = MEISeed
+    surr_mei_relate_hash_table = SurrMEIRelateHash
+    surround_mei_table = SurroundMEI
+    selector_table = MEISelector

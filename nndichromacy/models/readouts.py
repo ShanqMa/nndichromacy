@@ -805,15 +805,16 @@ class CenterSurround2dDoG(nn.Module):
         self.center_on = center_on
         self.surround_on = surround_on
         self.detach_center = False
-        self.center = Center(h, w, outdims, 
-                             init_width=init_width_center, 
-                             temp=temp)
+        '''self.center_weights, self.center = Center(h, w, outdims,init_width=init_width_center, temp=temp)
+        self.surround_weights, self.surround = Surround(h, w, outdims, 
+                                                        init_width_inner=init_width_surround_inner, 
+                                                        init_width_outer=init_width_surround_outer,
+                                                         dog=dog,temp=temp)'''
+        self.center = Center(h, w, outdims,init_width=init_width_center, temp=temp)
         self.surround = Surround(h, w, outdims, 
-                                 init_width_inner=init_width_surround_inner, 
-                                 init_width_outer=init_width_surround_outer,
-                                 dog=dog,
-                                 temp=temp)
-        
+                                init_width_inner=init_width_surround_inner, 
+                                init_width_outer=init_width_surround_outer,
+                                dog=dog,temp=temp)
         self._center_feature_weights = nn.Parameter(torch.Tensor(c, outdims))
         self._surround_feature_weights = nn.Parameter(torch.Tensor(c, outdims))
         self.bias = nn.Parameter(torch.zeros(outdims), requires_grad=bias)
