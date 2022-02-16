@@ -1,3 +1,4 @@
+import warnings
 from torch.utils.data import DataLoader
 import torch
 import torch.utils.data as utils
@@ -44,8 +45,9 @@ def get_oracle_dataloader(
             condition_hashes = dat_info.frame_image_id
             image_class = dat_info.frame_image_class
         elif "frame2_image_id" in dir(dat_info):
+            print(warnings.warn("Stimulus of kind frame2 detected. Using r_aperture as the image class"))
+            image_class = dat_info.frame2_aperture_r
             condition_hashes = dat_info.frame2_image_id
-            image_class = dat_info.frame2_image_class
         else:
             raise ValueError(
                 "'image_id' 'colorframeprojector_image_id', or 'frame_image_id' have to present in the dataset under dat.info "

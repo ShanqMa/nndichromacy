@@ -73,7 +73,6 @@ class Center(nn.Module):
         
         # Make sure this is a probability distribution
         masks_pdf = masks / torch.sum(masks, dim=(1, 2), keepdim=True)
-        
         return masks_pdf * self.weights.view(-1, 1, 1)
     
     
@@ -106,7 +105,7 @@ class Surround(nn.Module):
     
     @property
     def width_inner(self):
-        self._width_inner.data.clamp_(1e-3)
+        self._width_inner.data.clamp_(1e-3,1.5)
         return self._width_inner
     
     @property

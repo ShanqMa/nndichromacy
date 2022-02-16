@@ -19,7 +19,7 @@ from ..utility.measures import (
     get_mei_michelson_contrast,
     get_r2er,
 )
-from .from_nnfabrik import TrainedModel, ScoringTable, SummaryScoringTable
+from .from_nnfabrik import TrainedModel, ScoringTable, SummaryScoringTable, MeasuresTable
 from .from_mei import MEISelector, TrainedEnsembleModel
 #from .from_reconstruction import Reconstruction
 from . import DataCache, TrainedModelCache, EnsembleModelCache
@@ -28,7 +28,6 @@ from .from_mei import MEIScore
 
 schema = CustomSchema(dj.config.get("nnfabrik.schema_name", "nnfabrik_core"))
 fetch_download_path = "/data/fetched_from_attach/"
-
 
 @schema
 class CorrelationToAverge(ScoringTable):
@@ -493,8 +492,7 @@ class CtAeCSOpponentCenterUV(ScoringTable):
     model_cache = EnsembleModelCache
     dataloader_function_kwargs = dict(image_condition="imagenet_color_opponent_uv_center")
 
-
-
+    
 ##### ============ Summary Scores ============ #####
 
 

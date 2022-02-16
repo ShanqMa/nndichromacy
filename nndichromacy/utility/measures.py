@@ -39,6 +39,7 @@ def model_predictions_repeats(
                 images[0, :1, ...],
             )
         ), "All images in the batch should be equal"
+        
         unique_images = torch.cat(
             (
                 unique_images,
@@ -395,8 +396,7 @@ def compute_oracle_corr(repeated_outputs):
         _, r, n = repeated_outputs.shape
         oracles = (
             (repeated_outputs.mean(axis=1, keepdims=True) - repeated_outputs / r)
-            * r
-            / (r - 1)
+            * r / (r - 1)
         )
         if np.any(np.isnan(oracles)):
             warnings.warn(

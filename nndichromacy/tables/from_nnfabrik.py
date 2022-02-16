@@ -197,3 +197,30 @@ class MeasuresTable(MeasuresBase, ScoringTable):
         key[self.measure_attribute] = self.get_avg_of_unit_dict(unit_measures_dict)
         self.insert1(key, ignore_extra_fields=True)
         self.insert_unit_measures(key=key, unit_measures_dict=unit_measures_dict)
+
+class MeasuresTableOracles(MeasuresBase, ScoringTable):
+    """
+    Overwrites the nnfabriks scoring template, to make it handle mouse repeat-dataloaders.
+    """
+
+    dataloader_function_kwargs = {}
+
+    def make(self, key):
+
+        dataloaders = (
+            ScoringTable.get_oracle_dataloader(
+                self, key=key, **self.dataloader_function_kwargs
+            )
+            if self.measure_dataset == "test"
+            else self.get_dataloaders(key=key)
+        )
+        unit_measures_dict = self.measure_function(
+            dataloaders=dataloaders,
+            as_dict=True,
+            per_neuron=True,
+            **self.function_kwargs
+        )
+
+        key[self.measure_attribute] = self.get_avg_of_unit_dict(unit_measures_dict)
+        self.insert1(key, ignore_extra_fields=True)
+        self.insert_unit_measures(key=key, unit_measures_dict=unit_measures_dict)
