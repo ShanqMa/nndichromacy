@@ -27,7 +27,7 @@ def normalize(dd, lower=0, upper=1):
     return dd_ms / dd_ms.max() * (upper - lower) + lower
 
 class Center(nn.Module):
-    def __init__(self, h, w, outdims, init_width=.3, temp=0.1):
+    def __init__(self, h, w, outdims, init_width=.3, center_weights_upper=None, center_weights_lower=None, temp=0.1):
         super().__init__()
         self.h = h
         self.w = w
@@ -38,7 +38,8 @@ class Center(nn.Module):
         self._mu = nn.Parameter(torch.zeros(outdims, 2))
         self._width = nn.Parameter(torch.ones(outdims) * init_width)
         self._weights = nn.Parameter(torch.rand(outdims) + 1e-3)
-        
+        self.center_weights_upper = center_weights_upper
+        self.center_weights_lower = center_weights_lower
     @property
     def mu(self):
         self._mu.data.clamp_(-1, 1)
@@ -48,10 +49,11 @@ class Center(nn.Module):
     def width(self):
         self._width.data.clamp_(1e-3)
         return self._width
-    
-    @property
+
+    @property   
     def weights(self):
-        self._weights.data.clamp_(0.)
+        if self.center_weights_lower != None or self.center_weights_upper != None:
+            self._weights.data.clamp_(self.center_weights_lower, self.center_weights_upper)
         return self._weights
     
     @staticmethod
@@ -77,7 +79,8 @@ class Center(nn.Module):
     
     
 class Surround(nn.Module):
-    def __init__(self, h, w, outdims, init_width_inner=.2, init_width_outer=.4, dog=True, temp=0.1):
+    def __init__(self, h, w, outdims, init_width_inner=.2, init_width_outer=.4, dog=True, 
+                 surround_weights_upper=None, surround_weights_lower=None, cs_share_loc=False, center_mu=None, temp=0.1):
         super().__init__()
         self.h = h
         self.w = w
@@ -86,11 +89,14 @@ class Surround(nn.Module):
         self.init_width_outer = init_width_outer
         self.temp = temp
         self.dog = dog # boolean; if False, surround is a gaussian
-        
+        self.center_mu = center_mu
         if init_width_outer < init_width_inner:
             raise ValueError("Width of outer Gaussian disk cannot be smaller than the inner disk.")
-    
-        self._mu = nn.Parameter(torch.zeros(outdims, 2))
+
+        if cs_share_loc:
+            self._mu = self.center_mu
+        else:
+            self._mu = nn.Parameter(torch.zeros(outdims, 2))
         self._weights = nn.Parameter(-1. * (torch.rand(outdims) + 1e-3))
         self._width_outer = nn.Parameter(torch.ones(outdims) * init_width_outer)
         
@@ -98,6 +104,9 @@ class Surround(nn.Module):
             self._width_inner = nn.Parameter(torch.ones(outdims) * init_width_inner)
             self._outer_weights = nn.Parameter(torch.zeros(outdims) - 5.)
         
+        self.surround_weights_upper = surround_weights_upper
+        self.surround_weights_lower = surround_weights_lower
+
     @property
     def mu(self):
         self._mu.data.clamp_(-1, 1)
@@ -111,14 +120,13 @@ class Surround(nn.Module):
     @property
     def width_outer(self):
         if self.dog:
-            self._width_outer.data.copy_((self._width_outer.data - self._width_inner.data).clamp(0.) + self._width_inner.data)
+            width_outer = (self._width_outer - self._width_inner).clamp(0.) + self._width_inner
+            return width_outer
         else:
             self._width_outer.data.clamp_(1e-3)
-        return self._width_outer
+            return self._width_outer
         ## the code below will perfomr the above operation with gradients
-#         if self.dog:
-#             width_outer = (self._width_outer - self._width_inner).clamp(0.) + self._width_inner
-#         return width_outer
+
 
     @property
     def outer_weights(self):
@@ -132,7 +140,8 @@ class Surround(nn.Module):
     
     @property
     def weights(self):
-        self._weights.data.clamp_(None, 0.)
+        if self.surround_weights_lower != None or self.surround_weights_upper != None:
+            self._weights.data.clamp_(self.surround_weights_lower, self.surround_weights_upper)
         return self._weights
     
     @staticmethod

@@ -784,15 +784,19 @@ class CenterSurround2dDoG(nn.Module):
         in_shape,
         outdims,
         bias=False,
-        #init_mu_range=0.1
         center_on=True, 
         surround_on=True,
         # center params
         init_width_center=.2,
+        center_weights_upper=None,
+        center_weights_lower=None,
         # surround params
         init_width_surround_inner=.2,
         init_width_surround_outer=.4,
+        surround_weights_upper=None,
+        surround_weights_lower=None,
         dog=True,
+        cs_share_loc=False,
         # shared params between center and surround
         temp=.1,
     ):
@@ -810,11 +814,19 @@ class CenterSurround2dDoG(nn.Module):
                                                         init_width_inner=init_width_surround_inner, 
                                                         init_width_outer=init_width_surround_outer,
                                                          dog=dog,temp=temp)'''
-        self.center = Center(h, w, outdims,init_width=init_width_center, temp=temp)
+        self.center = Center(h, w, outdims,
+                            init_width=init_width_center,
+                            center_weights_upper=center_weights_upper,
+                            center_weights_lower=center_weights_lower,
+                            temp=temp)
+        center_mu=self.center.mu.data.cuda()
         self.surround = Surround(h, w, outdims, 
                                 init_width_inner=init_width_surround_inner, 
                                 init_width_outer=init_width_surround_outer,
-                                dog=dog,temp=temp)
+                                surround_weights_upper=surround_weights_upper,
+                                surround_weights_lower=surround_weights_lower,
+                                center_mu=center_mu,
+                                dog=dog,cs_share_loc=cs_share_loc, temp=temp)
         self._center_feature_weights = nn.Parameter(torch.Tensor(c, outdims))
         self._surround_feature_weights = nn.Parameter(torch.Tensor(c, outdims))
         self.bias = nn.Parameter(torch.zeros(outdims), requires_grad=bias)
@@ -828,23 +840,16 @@ class CenterSurround2dDoG(nn.Module):
     @property
     def center_feature_weights(self):
         # make the feature weights for each neuron positive and unit length
-        positive(self._center_feature_weights)
         return self._center_feature_weights / torch.norm(self._center_feature_weights, p=2, dim=0, keepdim=True)
     
     @property
     def surround_feature_weights(self):
         # make the feature weights for each neuron positive and unit length
-        positive(self._surround_feature_weights)
         return self._surround_feature_weights / torch.norm(self._surround_feature_weights, p=2, dim=0, keepdim=True)
     
     
     def forward(self, center_features, surround_features, data_key=None, shift=None):
-        if not (center_features >= 0.).all():
-            raise ValueError("center_features must be positive-valued")
-        
-        if not (surround_features >= 0.).all():
-            raise ValueError("surround_features must be positive-valued")
-        
+
         Nc, cc, hc, wc = center_features.size()
         Ns, cs, hs, ws = surround_features.size()
         
@@ -945,10 +950,15 @@ class MultipleCenterSurroundDoG(MultiReadout, torch.nn.ModuleDict):
         surround_on=True,
         # center params
         init_width_center=.2,
+        center_weights_upper=None,
+        center_weights_lower=None,
         # surround params
         init_width_surround_inner=.2,
         init_width_surround_outer=.4,
+        surround_weights_upper=None,
+        surround_weights_lower=None,
         dog=True,
+        cs_share_loc=False,
         # shared params between center and surround
         temp=.1,
     ):
@@ -968,11 +978,18 @@ class MultipleCenterSurroundDoG(MultiReadout, torch.nn.ModuleDict):
                     bias=bias,
                     center_on=center_on,
                     surround_on=surround_on,
-                    #init_mu_range=init_mu_range,
+                    # center params
                     init_width_center=init_width_center,
+                    center_weights_upper=center_weights_upper,
+                    center_weights_lower=center_weights_lower,
+                    # surround params
                     init_width_surround_inner=init_width_surround_inner,
                     init_width_surround_outer=init_width_surround_outer,
+                    surround_weights_upper=surround_weights_upper,
+                    surround_weights_lower=surround_weights_lower,
                     dog=dog,
+                    cs_share_loc=cs_share_loc,
+                    # shared params between center and surround
                     temp=temp,
                 ),
             )

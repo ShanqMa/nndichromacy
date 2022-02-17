@@ -1555,7 +1555,6 @@ def se_core_center_surround_dog(
         hidden_dilation=1,
         laplace_padding=None,
         input_regularizer="LaplaceL2norm",
-        #init_mu_range=0.2,
         readout_bias=True,  # readout args,
         gamma_readout=4,
         elu_offset=0,
@@ -1575,13 +1574,21 @@ def se_core_center_surround_dog(
         shifter_bias=True,
         hidden_padding=None,
 
-        init_width_center=.2,
-        init_width_surround_inner=.2,
-        init_width_surround_outer=.4,
-        dog=True,
         center_on=True,
         surround_on=True,
-        temp=0.1
+        # center params
+        init_width_center=.2,
+        center_weights_upper=None,
+        center_weights_lower=None,
+        # surround params
+        init_width_surround_inner=.2,
+        init_width_surround_outer=.4,
+        surround_weights_upper=None,
+        surround_weights_lower=None,
+        dog=True,
+        cs_share_loc=False,
+        # shared params between center and surround
+        temp=.1,
 
 ):
     """
@@ -1655,7 +1662,7 @@ def se_core_center_surround_dog(
 
     set_random_seed(seed)
 
-    core = SE2dCorePositive(
+    core = SE2dCore(
         input_channels=core_input_channels,
         hidden_channels=hidden_channels,
         input_kern=input_kern,
@@ -1689,10 +1696,18 @@ def se_core_center_surround_dog(
         #init_mu_range=init_mu_range,
         center_on=center_on,
         surround_on=surround_on,
+        # center params
         init_width_center=init_width_center,
+        center_weights_upper=center_weights_upper,
+        center_weights_lower=center_weights_lower,
+        # surround params
         init_width_surround_inner=init_width_surround_inner,
         init_width_surround_outer=init_width_surround_outer,
+        surround_weights_upper=surround_weights_upper,
+        surround_weights_lower=surround_weights_lower,
         dog=dog,
+        cs_share_loc=cs_share_loc,
+        # shared params between center and surround
         temp=temp,
     )
 
