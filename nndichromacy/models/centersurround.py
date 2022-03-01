@@ -99,8 +99,10 @@ class Surround(nn.Module):
         self._mu = nn.Parameter(torch.zeros(outdims, 2))
         if not mask_weight_fix:
             self._weights = nn.Parameter(0. * torch.rand(outdims) -1 + 1e-3)
+            print('not fix weights')
         else: 
             self._weights = (0 * torch.rand(outdims) -1 + 1e-3).cuda()
+            print('fix weights')
 
         self._width_outer = nn.Parameter(torch.ones(outdims) * init_width_outer)
         
