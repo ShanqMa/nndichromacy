@@ -40,6 +40,7 @@ class Center(nn.Module):
         if not mask_weight_fix:
             self._weights = nn.Parameter(0. * torch.rand(outdims) + 1 + 1e-3)
         else: self._weights = (0 * torch.rand(outdims) + 1 + 1e-3).cuda()
+
         self.center_weights_upper = center_weights_upper
         self.center_weights_lower = center_weights_lower
 
@@ -99,10 +100,8 @@ class Surround(nn.Module):
         self._mu = nn.Parameter(torch.zeros(outdims, 2))
         if not mask_weight_fix:
             self._weights = nn.Parameter(0. * torch.rand(outdims) -1 + 1e-3)
-            print('not fix weights')
         else: 
             self._weights = (0 * torch.rand(outdims) -1 + 1e-3).cuda()
-            print('fix weights')
 
         self._width_outer = nn.Parameter(torch.ones(outdims) * init_width_outer)
         
@@ -165,12 +164,14 @@ class Surround(nn.Module):
         return disk
     
     def forward(self, shift=None, center_pos=None):
+        #print('center_pos',center_pos)
         mu = center_pos if center_pos is not None else self.mu
         mu = mu + shift[None, ...] if shift is not None else mu
+        #print('surround',mu)
         outer_masks = self.generate_disk(self.h, self.w, self.outdims, mu, self.width_outer, temp=self.temp)
         
         if self.dog:
-            inner_masks = self.generate_disk(self.h, self.w, self.outdims, self.mu, self.width_inner, temp=self.temp)
+            inner_masks = self.generate_disk(self.h, self.w, self.outdims, mu, self.width_inner, temp=self.temp)
             masks = outer_masks * self.outer_weights.view(-1, 1, 1) - inner_masks * self.inner_weights.view(-1, 1, 1)
         
         else:

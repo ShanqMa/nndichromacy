@@ -1582,6 +1582,7 @@ def se_core_center_surround_dog(
         init_width_surround_inner=.2,
         init_width_surround_outer=.4,
         cs_weights_constraints={'center':[0,None],'surround':[None,0]},
+
         dog=True,
         cs_share_loc=False,
         mask_weight_fix=False,

@@ -810,6 +810,7 @@ class CenterSurround2dDoG(nn.Module):
         self.detach_center = False
         self.cs_share_loc = cs_share_loc
         self.mask_weight_fix = mask_weight_fix
+
         self.cs_weights_constraints = cs_weights_constraints
         center_weights_lower = self.cs_weights_constraints['center'][0]
         center_weights_upper = self.cs_weights_constraints['center'][1]
@@ -861,6 +862,7 @@ class CenterSurround2dDoG(nn.Module):
         surround_feature_weights = self.surround_feature_weights
    
         center_masks = self.center(shift=shift)
+        #print('center',self.center.mu)
         surround_masks = self.surround(shift=shift, center_pos=self.center.mu if self.cs_share_loc else None)
         
         if self.center_on and self.surround_on:
