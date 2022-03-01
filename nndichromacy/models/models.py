@@ -1585,6 +1585,7 @@ def se_core_center_surround_dog(
         init_width_surround_outer=.4,
         surround_weights_upper=None,
         surround_weights_lower=None,
+        mask_weight_fix=False,
         dog=True,
         cs_share_loc=False,
         # shared params between center and surround
@@ -1705,6 +1706,7 @@ def se_core_center_surround_dog(
         init_width_surround_outer=init_width_surround_outer,
         surround_weights_upper=surround_weights_upper,
         surround_weights_lower=surround_weights_lower,
+        mask_weight_fix=mask_weight_fix,
         dog=dog,
         cs_share_loc=cs_share_loc,
         # shared params between center and surround
