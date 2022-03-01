@@ -1578,15 +1578,13 @@ def se_core_center_surround_dog(
         surround_on=True,
         # center params
         init_width_center=.2,
-        center_weights_upper=None,
-        center_weights_lower=None,
         # surround params
         init_width_surround_inner=.2,
         init_width_surround_outer=.4,
-        surround_weights_upper=None,
-        surround_weights_lower=None,
+        cs_weights_constraints={'center':[0,None],'surround':[None,0]},
         dog=True,
         cs_share_loc=False,
+        mask_weight_fix=False,
         # shared params between center and surround
         temp=.1,
 
@@ -1698,15 +1696,13 @@ def se_core_center_surround_dog(
         surround_on=surround_on,
         # center params
         init_width_center=init_width_center,
-        center_weights_upper=center_weights_upper,
-        center_weights_lower=center_weights_lower,
         # surround params
         init_width_surround_inner=init_width_surround_inner,
         init_width_surround_outer=init_width_surround_outer,
-        surround_weights_upper=surround_weights_upper,
-        surround_weights_lower=surround_weights_lower,
+        cs_weights_constraints=cs_weights_constraints,
         dog=dog,
         cs_share_loc=cs_share_loc,
+        mask_weight_fix=mask_weight_fix,
         # shared params between center and surround
         temp=temp,
     )

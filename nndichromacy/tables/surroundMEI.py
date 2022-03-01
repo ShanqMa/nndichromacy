@@ -167,6 +167,7 @@ class ContrastMatchMEITemplateMixin:
     selector_table = None
     seed_table = None
     surr_mei_relate_hash_table = None
+    contrast_match_relate_hash_table = None
     surround_mei_table = None
     model_loader_class = integration.ModelLoader
     save = staticmethod(torch.save)
@@ -218,5 +219,6 @@ class ContrastMatchMEI(ContrastMatchMEITemplateMixin, dj.Computed):
     method_table = MEIMethod
     seed_table = MEISeed
     surr_mei_relate_hash_table = SurrMEIRelateHash
+    contrast_match_relate_hash_table = ContrastMatchRelateHash
     surround_mei_table = SurroundMEI
     selector_table = MEISelector
