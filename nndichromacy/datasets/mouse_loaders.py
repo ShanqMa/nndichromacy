@@ -225,7 +225,6 @@ def static_loader(
         data_key = f"{dat.neurons.animal_id[0]}-{dat.neurons.session[0]}-{dat.neurons.scan_idx[0]}"
 
     if return_test_sampler:
-        print("return test sampler is TTTTT")
         dataloader = get_oracle_dataloader(
             dat,
             image_condition=image_condition,

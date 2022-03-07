@@ -472,28 +472,12 @@ class ClipNormInChannelbySurrMEI:
         self.norm = norm
         self.x_min = x_min
         self.x_max = x_max
-
-        '''src_method_fn = key["src_method_fn"]
-        inner_ensemble_hash = key["inner_ensemble_hash"]
-        inner_method_hash = key["inner_method_hash"]
-        surr_method_hash = key['surr_method_hash']
-        unit_id = key["unit_id"]
-        inner_mask_hash = key['mask_hash']
-        smei_key = dj.AndList([dict(method_fn=src_method_fn),
-                     dict(ensemble_hash=inner_ensemble_hash),
-                     dict(inner_method_hash=inner_method_hash),
-                     dict()
-                     dict(unit_id=unit_id)])
-
-        surr_mei_path = (SurroundMEI & smei_key).fetch1('mei', download_path=fetch_download_path)
-        surr_mei=torch.load(surr_mei_path)
-        self.norm=torch.norm(surr_mei)'''
-
-        smei_key = dj.AndList([dict(ensemble_hash='8823faaffe306ee77e36205c6475a5e4'),
-                      dict(method_hash='99e422b26b583a68b95e03835c2888d6'),
-                      dict(method_fn = 'mei.methods.gradient_ascent'),
-                     dict(inner_method_hash='f462c746d098ced63abd2f2824c3f0f1'),
-                     dict(unit_id=key["unit_id"])])
+        
+        smei_key = dj.AndList([dict(method_fn=key["src_method_fn"]),
+                     dict(ensemble_hash=key["inner_ensemble_hash"]),
+                     dict(inner_method_hash=key["inner_method_hash"]),
+                     dict(method_hash = key['surr_method_hash']),
+                     dict(mask_hash = key['mask_hash']),dict(unit_id=key["unit_id"]) ])
         surr_mei_path = (SurroundMEI & smei_key).fetch1('mei', download_path=fetch_download_path)
         surr_mei=torch.load(surr_mei_path)
         self.norm=torch.norm(surr_mei)

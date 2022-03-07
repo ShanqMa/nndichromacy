@@ -273,7 +273,7 @@ def get_correlations(
                     )
                 )
             correlations[k][np.isnan(correlations[k])] = 0
-
+        
     if not as_dict:
         correlations = (
             np.hstack([v for v in correlations.values()])
@@ -336,7 +336,7 @@ def get_repeats(dataloader, min_repeats=2):
         assert np.all(
             np.abs(np.diff(inputs[:, :1, ...], axis=0)) == 0
         ), "Images of oracle trials do not match"
-        print(inputs[:, :1, ...].shape)
+        #print(inputs[:, :1, ...].shape)
         repeated_inputs.append(inputs)
         repeated_outputs.append(outputs)
     return np.array(repeated_inputs), np.array(repeated_outputs)
