@@ -822,7 +822,6 @@ class CenterSurround2dDoG(nn.Module):
                             center_weights_lower=center_weights_lower,
                             mask_weight_fix=mask_weight_fix,
                             temp=temp)
-        center_mu=self.center.mu.data.cuda()
         self.surround = Surround(h, w, outdims, 
                                 init_width_inner=init_width_surround_inner, 
                                 init_width_outer=init_width_surround_outer,

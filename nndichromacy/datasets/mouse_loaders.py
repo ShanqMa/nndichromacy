@@ -350,6 +350,7 @@ def static_loaders(
     image_reshape_list=None,
     trial_idx_selection=None,
     include_val_in_id_selection=None,
+    basepath=None
 ):
     """
     Returns a dictionary of dataloaders (i.e., trainloaders, valloaders, and testloaders) for >= 1 dataset(s).
@@ -392,7 +393,7 @@ def static_loaders(
         [trial_idx_selection] if trial_idx_selection is None else trial_idx_selection
     )
 
-    basepath = "/data/mouse/toliaslab/static/"
+    basepath = basepath if basepath else "/data/mouse/toliaslab/static/"
     for path, neuron_id, image_id, trial_idx_selection in zip_longest(
         paths, neuron_ids, image_ids, trial_idx_selection, fillvalue=None
     ):
