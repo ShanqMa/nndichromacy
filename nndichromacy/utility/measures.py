@@ -58,6 +58,7 @@ def model_predictions_repeats(
                 with device_state(model, device) if not is_ensemble_function(
                     model
                 ) else contextlib.nullcontext():
+                    breakpoint
                     output.append(
                         model(*batch, data_key=data_key, **batch._asdict())
                         .detach()
