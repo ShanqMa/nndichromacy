@@ -250,9 +250,14 @@ def static_loader(
     elif "frame_image_id" in dir(dat_info):
         frame_image_id = dat_info.frame_image_id
         image_class = dat_info.frame_image_class
+    elif "frame2_aperture_r" in dir(dat_info):
+        print('aperture was considered')
+        frame_image_id = dat_info.frame2_aperture_r
+        image_class = dat_info.frame2_aperture_r    
     elif "frame2_image_id" in dir(dat_info):
         frame_image_id = dat_info.frame2_image_id
         image_class = dat_info.frame2_image_class
+
     else:
         raise ValueError(
             "'image_id' 'colorframeprojector_image_id', or 'frame_image_id' have to present in the dataset under dat.info "
@@ -261,6 +266,7 @@ def static_loader(
 
     if isinstance(image_condition, str):
         image_condition_filter = image_class == image_condition
+        print('filter: ',image_condition_filter)
     elif isinstance(image_condition, list):
         image_condition_filter = sum(
             [image_class == i for i in image_condition]
@@ -270,7 +276,7 @@ def static_loader(
             raise TypeError(
                 "image_condition argument has to be a string or list of strings"
             )
-
+    print('...',image_ids,'...',image_condition)
     image_id_array = frame_image_id
     for tier in keys:
         # sample images
@@ -295,6 +301,7 @@ def static_loader(
             )
             np.random.set_state(random_state)
         elif image_condition is not None and image_ids is None:
+            print('condition filter was considered')
             subset_idx = np.where(
                 np.logical_and(image_condition_filter, tier_array == tier)
             )[0]
@@ -303,6 +310,7 @@ def static_loader(
             ), "image_ids contain validation or test images"
         else:
             subset_idx = np.where(tier_array == tier)[0]
+        print('subset_idx:',len(subset_idx))
 
         sampler = (
             SubsetRandomSampler(subset_idx)
