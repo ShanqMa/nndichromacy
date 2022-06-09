@@ -1577,8 +1577,10 @@ def se_core_center_surround_dog(
         center_on=True,
         surround_on=True,
         # center params
+        init_weight_center=1,
         init_width_center=.2,
         # surround params
+        init_weight_surround=-1,
         init_width_surround_inner=.2,
         init_width_surround_outer=.4,
         cs_weights_constraints={'center':[0,None],'surround':[None,0]},
@@ -1696,8 +1698,10 @@ def se_core_center_surround_dog(
         center_on=center_on,
         surround_on=surround_on,
         # center params
+        init_weight_center=init_weight_center,
         init_width_center=init_width_center,
         # surround params
+        init_weight_surround=init_weight_surround,
         init_width_surround_inner=init_width_surround_inner,
         init_width_surround_outer=init_width_surround_outer,
         cs_weights_constraints=cs_weights_constraints,

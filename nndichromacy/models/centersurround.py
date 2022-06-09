@@ -27,7 +27,7 @@ def normalize(dd, lower=0, upper=1):
     return dd_ms / dd_ms.max() * (upper - lower) + lower
 
 class Center(nn.Module):
-    def __init__(self, h, w, outdims, init_width=.3, center_weights_upper=None, center_weights_lower=None, mask_weight_fix=False, temp=0.1):
+    def __init__(self, h, w, outdims, init_weight_center=1.0, init_width=.3, center_weights_upper=None, center_weights_lower=None, mask_weight_fix=False, temp=0.1):
         super().__init__()
         self.h = h
         self.w = w
@@ -38,8 +38,8 @@ class Center(nn.Module):
         self._mu = nn.Parameter(torch.zeros(outdims, 2))
         self._width = nn.Parameter(torch.ones(outdims) * init_width)
         if not mask_weight_fix:
-            self._weights = nn.Parameter(0. * torch.rand(outdims) + 1 + 1e-3)
-        else: self._weights = (0 * torch.rand(outdims) + 1 + 1e-3).cuda()
+            self._weights = nn.Parameter(torch.zeros(outdims) + init_weight_center + 1e-3)
+        else: self._weights = (torch.zeros(outdims) + init_weight_center + 1e-3).cuda()
 
         self.center_weights_upper = center_weights_upper
         self.center_weights_lower = center_weights_lower
@@ -83,7 +83,7 @@ class Center(nn.Module):
     
     
 class Surround(nn.Module):
-    def __init__(self, h, w, outdims, init_width_inner=.2, init_width_outer=.4, dog=True, 
+    def __init__(self, h, w, outdims, init_weight_surround=-1.0, init_width_inner=.2, init_width_outer=.4, dog=True, 
                  surround_weights_upper=None, surround_weights_lower=None, mask_weight_fix=False, cs_share_loc=False, center_mu=None, temp=0.1):
         super().__init__()
         self.h = h
@@ -99,9 +99,9 @@ class Surround(nn.Module):
         
         self._mu = nn.Parameter(torch.zeros(outdims, 2))
         if not mask_weight_fix:
-            self._weights = nn.Parameter(0. * torch.rand(outdims) -1 + 1e-3)
+            self._weights = nn.Parameter(torch.zeros(outdims) + init_weight_surround + 1e-3) # initialize at -1 gives best results in 4 layer model
         else: 
-            self._weights = (0 * torch.rand(outdims) -1 + 1e-3).cuda()
+            self._weights = (torch.zeros(outdims) + init_weight_surround + 1e-3).cuda() 
 
         self._width_outer = nn.Parameter(torch.ones(outdims) * init_width_outer)
         

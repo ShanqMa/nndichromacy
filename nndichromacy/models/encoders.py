@@ -192,7 +192,7 @@ class GeneralEncoder(nn.Module):
                     pupil_center = torch.cat((pupil_center, trial_idx), dim=1)
 
             shift = self.shifter[data_key](pupil_center)
-
+        #print(self.readout, '   ',isinstance(self.readout, MultipleCenterSurroundDoG))
         if isinstance(self.readout, MultipleCenterSurround) or isinstance(self.readout, MultipleCenterSurroundDoG):
             x = self.readout(x, x, data_key=data_key, shift=shift, **kwargs)
             

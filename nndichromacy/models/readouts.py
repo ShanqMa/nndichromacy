@@ -787,8 +787,10 @@ class CenterSurround2dDoG(nn.Module):
         center_on=True, 
         surround_on=True,
         # center params
+        init_weight_center=1,
         init_width_center=.2,
         # surround params
+        init_weight_surround=-1,
         init_width_surround_inner=.2,
         init_width_surround_outer=.4,
         # to constrain mask weights
@@ -819,11 +821,13 @@ class CenterSurround2dDoG(nn.Module):
 
         self.center = Center(h, w, outdims,
                             init_width=init_width_center,
+                            init_weight_center=init_weight_center,
                             center_weights_upper=center_weights_upper,
                             center_weights_lower=center_weights_lower,
                             mask_weight_fix=mask_weight_fix,
                             temp=temp)
-        self.surround = Surround(h, w, outdims, 
+        self.surround = Surround(h, w, outdims,
+                                init_weight_surround=init_weight_surround, 
                                 init_width_inner=init_width_surround_inner, 
                                 init_width_outer=init_width_surround_outer,
                                 surround_weights_upper=surround_weights_upper,
@@ -852,7 +856,6 @@ class CenterSurround2dDoG(nn.Module):
     
     
     def forward(self, center_features, surround_features, data_key=None, shift=None):
-
         Nc, cc, hc, wc = center_features.size()
         Ns, cs, hs, ws = surround_features.size()
         
@@ -862,7 +865,6 @@ class CenterSurround2dDoG(nn.Module):
         surround_feature_weights = self.surround_feature_weights
    
         center_masks = self.center(shift=shift)
-        #print('center',self.center.mu)
         surround_masks = self.surround(shift=shift, center_pos=self.center.mu if self.cs_share_loc else None)
         
         if self.center_on and self.surround_on:
@@ -882,7 +884,7 @@ class CenterSurround2dDoG(nn.Module):
         elif not self.center_on and self.surround_on:
             surround_y = torch.einsum("bcij,nij,cn->bn", surround_features, surround_masks, surround_feature_weights)
             y = surround_y
-
+        # print('y in readout is ',y)
         return y + self.bias
     
     def feature_l1(self, average=True):
@@ -923,7 +925,7 @@ class MultipleCenterSurround(MultiReadout, torch.nn.ModuleDict):
             n_neurons = n_neurons_dict[k]
 
             self.add_module(
-                k,
+                k,q
                 CenterSurround2d(
                     in_shape=in_shape,
                     outdims=n_neurons,
@@ -953,8 +955,10 @@ class MultipleCenterSurroundDoG(MultiReadout, torch.nn.ModuleDict):
         center_on=True, 
         surround_on=True,
         # center params
+        init_weight_center=1,
         init_width_center=.2,
         # surround params
+        init_weight_surround=-1,
         init_width_surround_inner=.2,
         init_width_surround_outer=.4,
 
@@ -982,8 +986,10 @@ class MultipleCenterSurroundDoG(MultiReadout, torch.nn.ModuleDict):
                     center_on=center_on,
                     surround_on=surround_on,
                     # center params
+                    init_weight_center=init_weight_center,
                     init_width_center=init_width_center,
                     # surround params
+                    init_weight_surround=init_weight_surround,
                     init_width_surround_inner=init_width_surround_inner,
                     init_width_surround_outer=init_width_surround_outer,
                     cs_weights_constraints=cs_weights_constraints,
