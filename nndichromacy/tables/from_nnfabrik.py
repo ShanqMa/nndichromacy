@@ -32,6 +32,18 @@ if "stores" not in dj.config:
     }
 
 
+if not 'stores' in dj.config:
+    dj.config['stores'] = {}
+dj.config['stores']['minio'] = {  # store in s3
+        'protocol': 's3',
+        'endpoint': os.environ.get('MINIO_ENDPOINT', 'DUMMY_ENDPOINT'),
+        'bucket': 'nnfabrik',
+        'location': 'dj-store',
+        'access_key': os.environ.get('MINIO_ACCESS_KEY', 'FAKEKEY'),
+        'secret_key': os.environ.get('MINIO_SECRET_KEY', 'FAKEKEY'),
+        'secure': True,
+    }
+    
 @schema
 class DataInfo(DataInfoBase):
     dataset_table = Dataset
