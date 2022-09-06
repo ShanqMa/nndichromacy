@@ -80,8 +80,6 @@ def model_predictions_repeats(
 
     if broadcast_to_target:
         output = [np.broadcast_to(x, target[idx].shape) for idx, x in enumerate(output)]
-        print("continue here")
-        print("broadcasted")
     return target, output
 
 
@@ -745,7 +743,7 @@ def get_mei_michelson_contrast(mei):
     return michelson_contrast.cpu().numpy()
 
 
-def get_SNR(dataloaders, as_dict=False, per_neuron=True):
+def get_SNR(dataloaders, as_dict=False, per_neuron=True, eps=1e-9):
     SNRs = {}
     for k, dataloader in dataloaders.items():
         # assert isinstance(dataloader.batch_sampler, RepeatsBatchSampler), 'dataloader.batch_sampler must be a RepeatsBatchSampler'
@@ -757,7 +755,7 @@ def get_SNR(dataloaders, as_dict=False, per_neuron=True):
         mu_bar = np.mean(mu, axis=0)
         sigma_2 = np.array([np.var(repeats, ddof=1, axis=0) for repeats in responses])
         sigma_2_bar = np.mean(sigma_2, axis=0)
-        SNR = (1 / mu.shape[0] * np.sum((mu - mu_bar) ** 2, axis=0)) / sigma_2_bar
+        SNR = (1 / mu.shape[0] * np.sum((mu - mu_bar) ** 2, axis=0)) / (sigma_2_bar + eps)
         SNRs[k] = SNR
     if not as_dict:
         SNRs = (
@@ -782,7 +780,6 @@ def get_r2er(
 ):
     """
     from https://github.com/sinzlab/nnsysident, modified to work with behavior as channels.
-
     """
     dataloaders = dataloaders["test"] if "test" in dataloaders else dataloaders
     r2er, r2 = {}, {}
